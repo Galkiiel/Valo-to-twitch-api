@@ -17,7 +17,7 @@ let baseRR = null;
 
 // Fonction pour récupérer ton RR actuel
 async function getCurrentRR() {
-  const url = `https://api.henrikdev.xyz/valorant/v2/mmr/${eu}/${Nutella}/${8365}`;
+  const url = `https://api.henrikdev.xyz/valorant/v2/mmr/${REGION}/${USERNAME}/${TAG}`;
   const res = await fetch(url, {
     headers: { Authorization: HENRIK_API_KEY },
   });
@@ -61,3 +61,4 @@ app.get("/reset", async (req, res) => {
 app.listen(PORT, () =>
   console.log(`✅ API RR lancée sur le port ${PORT}`)
 );
+
