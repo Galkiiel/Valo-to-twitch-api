@@ -5,74 +5,73 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===============================
-// ⚙️ CONFIG À PERSONNALISER
+// CONFIG À PERSONNALISER
 // ===============================
-const REGION = "eu";         // ta région Valorant : eu, na, ap, kr...
-const USERNAME = "Nutella";  // ton pseudo Valorant
-const TAG = "8365";          // ton tag Valorant (sans le #)
-const HENRIK_API_KEY = "THDEV-2d07bab6-1481-44f8-94e7-d6b38fa9c123"; // ta clé HenrikDev (si nécessaire)
+const REGION = "eu";          // ta région Valorant
+const USERNAME = "Nutella";   // ton pseudo
+const TAG = "8365";           // ton tag
 // ===============================
 
 let baseRR = null;
-let lastRR = null;
 let wins = 0;
 let losses = 0;
 
-// 🧩 Fonction pour récupérer ton RR actuel
+// Fonction pour récupérer ton RR actuel depuis valorantrank.chat
 async function getCurrentRR() {
-  const url = `https://api.henrikdev.xyz/valorant/v2/mmr/${REGION}/${USERNAME}/${TAG}`;
+  const url = `https://valorantrank.chat/${REGION}/${USERNAME}/${TAG}?onlyRank=true`;
 
-  const res = await fetch(url, {
-    headers: { Authorization: HENRIK_API_KEY },
-  });
-  const data = await res.json();
+  try {
+    const res = await fetch(url);
+    const text = await res.text(); // ex: "Nutella#8365 [Platinum 1] : 71 RR"
 
-  if (!data.data || !data.data.current_data) {
-    console.error("Erreur API:", data);
+    const match = text.match(/(\d+)\s*RR/);
+    if (!match) return null;
+
+    const rr = parseInt(match[1], 10);
+    return rr;
+  } catch (err) {
+    console.error("Erreur fetch:", err);
     return null;
   }
-
-  return data.data.current_data.rr;
 }
 
-// ✅ Endpoint principal : renvoie ton résumé RR
+// Endpoint principal : retourne le recap RR
 app.get("/rr", async (req, res) => {
   const currentRR = await getCurrentRR();
   if (currentRR === null) {
     return res.send("Impossible de récupérer ton RR pour le moment 😕");
   }
 
-  // Première lecture = base de départ
   if (baseRR === null) {
-    baseRR = currentRR;
-    lastRR = currentRR;
+    baseRR = currentRR; // première lecture = RR de départ
   }
 
-  // Mise à jour du compteur win/loss
-  if (currentRR > lastRR) wins++;
-  else if (currentRR < lastRR) losses++;
-
-  lastRR = currentRR;
-
   const diff = currentRR - baseRR;
-  const signe = diff >= 0 ? "+" : "";
-  const message = `${wins} win - ${losses} loose = ${signe}${diff} RR`;
 
-  res.send(message);
+  // Mise à jour wins/losses
+  if (diff > wins - losses) {
+    wins++;
+  } else if (diff < wins - losses) {
+    losses++;
+  }
+
+  const signe = diff >= 0 ? "+" : "";
+  res.send(`${wins} win - ${losses} loose = ${signe}${diff} RR depuis le début du stream`);
 });
 
-// 🔄 Endpoint pour reset au début du stream
+// Endpoint pour reset le RR de départ
 app.get("/reset", async (req, res) => {
   const currentRR = await getCurrentRR();
   if (currentRR !== null) {
     baseRR = currentRR;
-    lastRR = currentRR;
     wins = 0;
     losses = 0;
-    res.send("✅ Compteur RR réinitialisé !");
+    res.send("✅ RR de départ réinitialisé !");
   } else {
     res.send("Erreur : impossible de réinitialiser.");
   }
 });
 
-app.listen(PORT, () => console.log(`✅ API RR lancée sur le port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅ API RR lancée sur le port ${PORT}`)
+);
